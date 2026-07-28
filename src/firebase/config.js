@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDsbqzDjjp0A_ZWJgyIHp0W6dsjZHYHd7I",
@@ -12,16 +12,20 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-0HBF6WE1EH"
 };
 
-// Firebase is always configured with real credentials
 export const isFirebaseConfigured = true;
 
-// Initialize Firebase App (singleton pattern)
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Singleton Firebase App Initialization
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+// Singleton Auth Instance
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Google Provider — always prompt account selection
+// Singleton Firestore Instance configured with long-polling to prevent WebChannel socket stream blocking by ad-blockers (ERR_BLOCKED_BY_CLIENT)
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+});
+
+// Singleton Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
