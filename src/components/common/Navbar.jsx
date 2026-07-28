@@ -83,13 +83,14 @@ const Navbar = () => {
           
           {/* 1. Logo Section */}
           <Link to="/" className="flex items-center gap-2.5 group relative" aria-label="SkyMart Home">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-brand-500/20 group-hover:scale-105 transition-transform duration-300">
-              S
-            </div>
+            <img 
+              src="/logo.svg" 
+              alt="SkyMart Logo" 
+              className="w-10 h-10 object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
+            />
             <div className="flex flex-col">
               <span className="font-extrabold text-xl tracking-tight text-slate-950 dark:text-white flex items-center gap-1">
                 Sky<span className="bg-gradient-to-r from-brand-600 to-indigo-500 bg-clip-text text-transparent dark:from-brand-400 dark:to-indigo-400">Mart</span>
-                <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
               </span>
               <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 -mt-1">
                 Next-Gen Commerce

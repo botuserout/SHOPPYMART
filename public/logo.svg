@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <!-- Shopping Bag Blue Gradient -->
+    <linearGradient id="bagGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="40%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    
+    <!-- Rocket Arrow Yellow-Orange Gradient -->
+    <linearGradient id="rocketGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d97706"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
+    </linearGradient>
+
+    <!-- Shadow -->
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#1d4ed8" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#shadow)">
+    <!-- Shopping Bag Handle -->
+    <path d="M196 150 C196 90, 316 90, 316 150" stroke="#2563eb" stroke-width="32" stroke-linecap="round" fill="none"/>
+    
+    <!-- Main Shopping Bag Body -->
+    <path d="M140 155 H372 L396 430 C397 448, 383 462, 365 462 H147 C129 462, 115 448, 116 430 L140 155 Z" fill="url(#bagGradient)"/>
+    
+    <!-- White Stylized "S" Mark -->
+    <path d="M295 210 C340 210, 350 248, 310 282 L245 330 C210 358, 235 410, 290 410 C325 410, 345 390, 355 370" stroke="#ffffff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    
+    <!-- Rocket Speed Trails -->
+    <path d="M75 385 H135" stroke="#f59e0b" stroke-width="12" stroke-linecap="round"/>
+    <path d="M90 420 H155" stroke="#f59e0b" stroke-width="14" stroke-linecap="round"/>
+
+    <!-- Rocket / Fast Arrow -->
+    <path d="M105 435 L235 365 L190 315 Z" fill="url(#rocketGradient)"/>
+  </g>
+</svg>

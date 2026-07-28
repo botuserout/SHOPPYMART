@@ -49,12 +49,9 @@ const Footer = () => {
         {/* Brand info */}
         <div className="md:col-span-2 space-y-4">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white font-extrabold text-lg shadow-glow">
-              S
-            </div>
+            <img src="/logo.svg" alt="SkyMart Logo" className="w-9 h-9 object-contain drop-shadow-md" />
             <span className="font-extrabold text-xl tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
               Sky<span className="text-brand-600 dark:text-brand-400">Mart</span>
-              <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
             </span>
           </Link>
           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-sm">
