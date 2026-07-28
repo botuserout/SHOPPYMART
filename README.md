@@ -100,7 +100,122 @@ Protected admin routes (`/admin`, `/admin/products`, `/admin/orders`, `/admin/us
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🏗️ System Architecture
+
+SkyMart utilizes a **Decoupled 3-Tier Layered Architecture** with localized fail-safe fallbacks:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        PRESENTATION LAYER (UI)                         │
+│   React 18 SPA  │  Tailwind CSS  │  Framer Motion  │  Lucide Icons     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        STATE MANAGEMENT LAYER                          │
+│   Redux Store:  authSlice │ productSlice │ cartSlice │ wishlistSlice │ uiSlice │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                        SERVICE & API API LAYER                         │
+│  authService.js (Session/OAuth)  │  firebaseService.js (Firestore & Seed)│
+└───────────────────┬────────────────────────────────┬───────────────────┘
+                    │                                │
+                    ▼                                ▼
+┌──────────────────────────────────────┐ ┌───────────────────────────────┐
+│     EXTERNAL CLOUD SERVICES          │ │     FAIL-SAFE LOCAL CACHE     │
+│  Firebase Auth (Google & Email/Pass) │ │  LocalStorage (Hydration)     │
+│  Cloud Firestore (Doc Storage)       │ │  Mock Fallbacks (<50ms Load)  │
+└──────────────────────────────────────┘ └───────────────────────────────┘
+```
+
+---
+
+## 📁 Directory & File Structure
+
+```
+SHOPPYMART/
+├── public/                      # Static Assets & Deployment Redirects
+│   ├── favicon.svg              # Browser tab brand icon
+│   ├── logo.svg                 # Scalable brand logo (Shopping bag & rocket)
+│   └── _redirects               # Netlify SPA route rewrite rules
+│
+├── src/                         # Core Source Code
+│   ├── components/              # UI Components
+│   │   ├── common/              # Global components
+│   │   │   ├── Footer.jsx       # Responsive brand footer
+│   │   │   ├── Navbar.jsx       # Glassmorphic header, drawer & bottom nav
+│   │   │   ├── SearchModal.jsx  # Real-time search trigger overlay
+│   │   │   └── Toast.jsx        # Notification popups
+│   │   └── protected/           # Route Guards
+│   │       ├── AdminRoute.jsx   # Admin role validation guard
+│   │       └── ProtectedRoute.jsx # Authentication validation guard
+│   │
+│   ├── firebase/                # Firebase Config & SDK
+│   │   └── config.js            # Initialized Firebase app, Auth, & Firestore
+│   │
+│   ├── layouts/                 # Page Layout Enclosures
+│   │   ├── AdminLayout.jsx      # Admin panel sidebar & wrapper
+│   │   └── MainLayout.jsx       # Main customer header, body & footer
+│   │
+│   ├── pages/                   # Lazy-Loaded Route Views
+│   │   ├── admin/               # Admin Portal Pages
+│   │   │   ├── CategoriesAdmin.jsx # Category creation & management
+│   │   │   ├── Dashboard.jsx    # Analytics metrics & charts
+│   │   │   ├── OrdersAdmin.jsx   # Order status tracking
+│   │   │   ├── ProductsAdmin.jsx # Product CRUD manager
+│   │   │   └── UsersAdmin.jsx    # User roles manager
+│   │   ├── Cart.jsx             # Shopping cart page
+│   │   ├── Checkout.jsx         # Offline payment simulation
+│   │   ├── ForgotPassword.jsx   # Password reset screen
+│   │   ├── Home.jsx             # Handcrafted Apple/Stripe-style landing page
+│   │   ├── Login.jsx            # Sign-in page (Google & Email)
+│   │   ├── NotFound.jsx         # 404 Error page
+│   │   ├── OrderDetail.jsx      # Detailed order breakdown
+│   │   ├── Orders.jsx           # Order history list
+│   │   ├── OrderSuccess.jsx     # Invoice receipt & print view
+│   │   ├── ProductDetail.jsx    # Product overview & review page
+│   │   ├── Products.jsx         # Product catalog with category filter
+│   │   ├── Profile.jsx          # User settings & Admin mode toggle
+│   │   ├── Register.jsx         # New user registration
+│   │   ├── ResetPassword.jsx    # Password update page
+│   │   └── Wishlist.jsx         # Saved items page
+│   │
+│   ├── redux/                   # Redux Toolkit State Management
+│   │   ├── slices/              # Modular State Slices
+│   │   │   ├── authSlice.js     # User state & auth thunks
+│   │   │   ├── cartSlice.js     # Cart items & calculations
+│   │   │   ├── orderSlice.js    # Order history & status
+│   │   │   ├── productSlice.js  # Product catalog & categories
+│   │   │   ├── uiSlice.js       # Dark mode & modal triggers
+│   │   │   └── wishlistSlice.js # Saved wishlist items
+│   │   └── store.js             # Configured Redux store
+│   │
+│   ├── services/                # Decoupled Business Logic & API
+│   │   ├── authService.js       # Firebase Auth & session hydration
+│   │   └── firebaseService.js   # Firestore operations & mock seed engine
+│   │
+│   ├── utils/                   # Helper Utilities
+│   │   ├── formatters.js        # Currency & date formatting
+│   │   └── seedData.js          # Default catalog seeds (35+ products)
+│   │
+│   ├── App.jsx                  # Main router & session observer mount
+│   ├── index.css                # Tailwind base styles & custom utilities
+│   └── main.jsx                 # Vite application root entry point
+│
+├── .gitignore                   # Git exclusions (node_modules, .env, dist)
+├── netlify.toml                 # Netlify build & rewrite configuration
+├── package.json                 # Project dependencies & scripts
+├── README.md                    # Gamified documentation
+├── tailwind.config.js           # Custom Tailwind theme tokens
+├── vercel.json                  # Vercel SPA rewrite configuration
+└── vite.config.js               # Vite build & chunk-splitting setup
+```
+
+---
+
+## 🛠️ Tech Stack Overview
 
 | Layer | Technology | Purpose |
 |---|---|---|
