@@ -2,7 +2,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   signOut, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   sendEmailVerification, 
   sendPasswordResetEmail,
   updateProfile
@@ -18,13 +19,13 @@ import {
   deleteDoc, 
   query, 
   where, 
-  orderBy, 
+  orderBy,
   serverTimestamp 
 } from 'firebase/firestore';
-import { auth, db, googleProvider, isFirebaseConfigured } from '../firebase/config';
+import { auth, db, googleProvider } from '../firebase/config';
 import { initialProducts, initialCategories, sampleUsers } from '../utils/seedData';
 
-// Local storage key constants for fallback mode
+// Local storage key constants (used as a graceful fallback when Firestore is blocked by ad-blockers)
 const LS_KEYS = {
   PRODUCTS: 'skymart_mock_products',
   CATEGORIES: 'skymart_mock_categories',
@@ -35,7 +36,6 @@ const LS_KEYS = {
   WISHLIST: 'skymart_mock_wishlist',
 };
 
-// Local storage helper
 const getLS = (key, fallback) => {
   try {
     const item = localStorage.getItem(key);
@@ -53,7 +53,7 @@ const setLS = (key, value) => {
   }
 };
 
-// Initialize Mock Data if missing
+// Initialize seed data if missing
 if (!getLS(LS_KEYS.PRODUCTS)) setLS(LS_KEYS.PRODUCTS, initialProducts);
 if (!getLS(LS_KEYS.CATEGORIES)) setLS(LS_KEYS.CATEGORIES, initialCategories);
 if (!getLS(LS_KEYS.USERS)) setLS(LS_KEYS.USERS, sampleUsers);
@@ -62,114 +62,96 @@ if (!getLS(LS_KEYS.ORDERS)) setLS(LS_KEYS.ORDERS, []);
 // ==================== AUTHENTICATION SERVICES ====================
 
 export const registerUser = async ({ email, password, displayName }) => {
-  if (isFirebaseConfigured) {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Send email verification
-    await sendEmailVerification(user).catch(err => console.warn('Verification email error:', err));
-    
-    // Update display name
-    await updateProfile(user, { displayName });
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
 
-    // Store user document in Firestore `users` collection
+  // Send email verification
+  await sendEmailVerification(user).catch(err => console.warn('Verification email error:', err));
+
+  // Update display name in Firebase Auth profile
+  await updateProfile(user, { displayName });
+
+  const userData = {
+    uid: user.uid,
+    email: user.email,
+    displayName: displayName || email.split('@')[0],
+    photoURL: user.photoURL || '',
+    role: 'customer',
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    await setDoc(doc(db, 'users', user.uid), userData);
+  } catch (err) {
+    console.warn('Firestore write blocked (ad-blocker?), saving locally:', err.message);
+    const mockUsers = getLS(LS_KEYS.USERS, []);
+    mockUsers.push(userData);
+    setLS(LS_KEYS.USERS, mockUsers);
+  }
+
+  return userData;
+};
+
+export const loginUser = async ({ email, password }) => {
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users', user.uid));
+    if (userDoc.exists()) return userDoc.data();
+
+    // First-time login: create doc
     const userData = {
       uid: user.uid,
       email: user.email,
-      displayName: displayName || email.split('@')[0],
+      displayName: user.displayName || email.split('@')[0],
       photoURL: user.photoURL || '',
       role: 'customer',
       createdAt: new Date().toISOString()
     };
-
     await setDoc(doc(db, 'users', user.uid), userData);
     return userData;
-  } else {
-    // Fallback Mock Register
-    const mockUsers = getLS(LS_KEYS.USERS, sampleUsers);
-    if (mockUsers.some(u => u.email === email)) {
-      throw new Error('User with this email already exists.');
-    }
-    
-    const newUser = {
-      uid: 'user-' + Date.now(),
-      email,
-      displayName: displayName || email.split('@')[0],
-      photoURL: '',
+  } catch (err) {
+    console.warn('Firestore read blocked (ad-blocker?), using Firebase Auth data:', err.message);
+    return {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || email.split('@')[0],
+      photoURL: user.photoURL || '',
       role: 'customer',
       createdAt: new Date().toISOString()
     };
-
-    mockUsers.push(newUser);
-    setLS(LS_KEYS.USERS, mockUsers);
-    setLS(LS_KEYS.CURRENT_USER, newUser);
-    return newUser;
   }
 };
 
-export const loginUser = async ({ email, password }) => {
-  if (isFirebaseConfigured) {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Fetch role from Firestore
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    let userData = userDoc.exists() ? userDoc.data() : null;
-
-    if (!userData) {
-      userData = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || email.split('@')[0],
-        photoURL: user.photoURL || '',
-        role: 'customer',
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(doc(db, 'users', user.uid), userData);
-    }
-
-    return userData;
-  } else {
-    // Fallback Mock Login
-    const mockUsers = getLS(LS_KEYS.USERS, sampleUsers);
-    // Special admin login shortcut for easy demoing
-    if (email === 'admin@skymart.com') {
-      const admin = mockUsers.find(u => u.role === 'admin') || sampleUsers[0];
-      setLS(LS_KEYS.CURRENT_USER, admin);
-      return admin;
-    }
-
-    let existingUser = mockUsers.find(u => u.email === email);
-    if (!existingUser) {
-      existingUser = {
-        uid: 'user-' + Date.now(),
-        email,
-        displayName: email.split('@')[0],
-        photoURL: '',
-        role: 'customer',
-        createdAt: new Date().toISOString()
-      };
-      mockUsers.push(existingUser);
-      setLS(LS_KEYS.USERS, mockUsers);
-    }
-    setLS(LS_KEYS.CURRENT_USER, existingUser);
-    return existingUser;
-  }
-};
-
+/**
+ * Initiates Google Sign-In using redirect flow.
+ * Avoids COOP/popup-blocking issues entirely.
+ * The result is consumed on the next page load via getGoogleRedirectResult().
+ */
 export const loginWithGoogle = async () => {
-  if (isFirebaseConfigured) {
-    const userCredential = await signInWithPopup(auth, googleProvider);
-    const user = userCredential.user;
+  await signInWithRedirect(auth, googleProvider);
+  // Browser navigates away — this line is never reached
+};
 
+/**
+ * Called on app startup to check if the user just returned from a Google redirect.
+ * Returns user data if a redirect just completed, or null if no pending redirect.
+ */
+export const getGoogleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (!result) return null; // No redirect was pending
+
+    const user = result.user;
     const userDocRef = doc(db, 'users', user.uid);
-    const userDoc = await getDoc(userDocRef);
 
-    let userData;
-    if (userDoc.exists()) {
-      userData = userDoc.data();
-    } else {
-      userData = {
+    try {
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) return userDoc.data();
+
+      // New Google user — create Firestore doc
+      const userData = {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName || 'Google User',
@@ -178,70 +160,63 @@ export const loginWithGoogle = async () => {
         createdAt: new Date().toISOString()
       };
       await setDoc(userDocRef, userData);
+      return userData;
+    } catch (firestoreErr) {
+      console.warn('Firestore blocked (ad-blocker?), returning Firebase Auth data:', firestoreErr.message);
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || 'Google User',
+        photoURL: user.photoURL || '',
+        role: 'customer',
+        createdAt: new Date().toISOString()
+      };
     }
-    return userData;
-  } else {
-    // Fallback Google Login
-    const mockUser = {
-      uid: 'google-user-' + Date.now(),
-      email: 'alex.google@example.com',
-      displayName: 'Alex (Google Auth)',
-      photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&auto=format&fit=crop&q=80',
-      role: 'customer',
-      createdAt: new Date().toISOString()
-    };
-    setLS(LS_KEYS.CURRENT_USER, mockUser);
-    return mockUser;
+  } catch (err) {
+    // Ignore "no redirect" errors silently
+    if (err.code === 'auth/no-auth-event') return null;
+    console.warn('getRedirectResult error:', err.message);
+    return null;
   }
 };
 
 export const logoutUser = async () => {
-  if (isFirebaseConfigured) {
-    await signOut(auth);
-  }
+  await signOut(auth);
   localStorage.removeItem(LS_KEYS.CURRENT_USER);
 };
 
 export const resetUserPassword = async (email) => {
-  if (isFirebaseConfigured) {
-    await sendPasswordResetEmail(auth, email);
-  }
+  await sendPasswordResetEmail(auth, email);
   return true;
 };
 
 // ==================== PRODUCTS SERVICES ====================
 
 export const fetchProductsFromDb = async () => {
-  if (isFirebaseConfigured) {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'products'));
-      const products = [];
-      querySnapshot.forEach((doc) => {
-        products.push({ id: doc.id, ...doc.data() });
-      });
-      return products.length > 0 ? products : initialProducts;
-    } catch (err) {
-      console.warn('Firestore fetch products failed, using seed data:', err);
-      return getLS(LS_KEYS.PRODUCTS, initialProducts);
-    }
+  try {
+    const querySnapshot = await getDocs(collection(db, 'products'));
+    const products = [];
+    querySnapshot.forEach((doc) => {
+      products.push({ id: doc.id, ...doc.data() });
+    });
+    return products.length > 0 ? products : initialProducts;
+  } catch (err) {
+    console.warn('Firestore fetch products blocked/failed, using seed data:', err.message);
+    return getLS(LS_KEYS.PRODUCTS, initialProducts);
   }
-  return getLS(LS_KEYS.PRODUCTS, initialProducts);
 };
 
 export const createProductInDb = async (productData) => {
-  if (isFirebaseConfigured) {
+  try {
     const docRef = await addDoc(collection(db, 'products'), {
       ...productData,
       createdAt: new Date().toISOString()
     });
     return { id: docRef.id, ...productData };
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, saving product locally:', err.message);
     const products = getLS(LS_KEYS.PRODUCTS, initialProducts);
-    const newProduct = {
-      id: 'prod-' + Date.now(),
-      ...productData,
-      createdAt: new Date().toISOString()
-    };
+    const newProduct = { id: 'prod-' + Date.now(), ...productData, createdAt: new Date().toISOString() };
     products.unshift(newProduct);
     setLS(LS_KEYS.PRODUCTS, products);
     return newProduct;
@@ -249,10 +224,11 @@ export const createProductInDb = async (productData) => {
 };
 
 export const updateProductInDb = async (productId, productData) => {
-  if (isFirebaseConfigured) {
+  try {
     await updateDoc(doc(db, 'products', productId), productData);
     return { id: productId, ...productData };
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, updating product locally:', err.message);
     const products = getLS(LS_KEYS.PRODUCTS, initialProducts);
     const index = products.findIndex(p => p.id === productId);
     if (index !== -1) {
@@ -264,12 +240,12 @@ export const updateProductInDb = async (productId, productData) => {
 };
 
 export const deleteProductFromDb = async (productId) => {
-  if (isFirebaseConfigured) {
+  try {
     await deleteDoc(doc(db, 'products', productId));
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, deleting product locally:', err.message);
     const products = getLS(LS_KEYS.PRODUCTS, initialProducts);
-    const filtered = products.filter(p => p.id !== productId);
-    setLS(LS_KEYS.PRODUCTS, filtered);
+    setLS(LS_KEYS.PRODUCTS, products.filter(p => p.id !== productId));
   }
   return productId;
 };
@@ -277,24 +253,23 @@ export const deleteProductFromDb = async (productId) => {
 // ==================== CATEGORIES SERVICES ====================
 
 export const fetchCategoriesFromDb = async () => {
-  if (isFirebaseConfigured) {
-    try {
-      const snap = await getDocs(collection(db, 'categories'));
-      const cats = [];
-      snap.forEach(doc => cats.push({ id: doc.id, ...doc.data() }));
-      return cats.length > 0 ? cats : initialCategories;
-    } catch (e) {
-      return getLS(LS_KEYS.CATEGORIES, initialCategories);
-    }
+  try {
+    const snap = await getDocs(collection(db, 'categories'));
+    const cats = [];
+    snap.forEach(doc => cats.push({ id: doc.id, ...doc.data() }));
+    return cats.length > 0 ? cats : initialCategories;
+  } catch (err) {
+    console.warn('Firestore blocked, using seed categories:', err.message);
+    return getLS(LS_KEYS.CATEGORIES, initialCategories);
   }
-  return getLS(LS_KEYS.CATEGORIES, initialCategories);
 };
 
 export const createCategoryInDb = async (categoryData) => {
-  if (isFirebaseConfigured) {
+  try {
     const docRef = await addDoc(collection(db, 'categories'), categoryData);
     return { id: docRef.id, ...categoryData };
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, saving category locally:', err.message);
     const cats = getLS(LS_KEYS.CATEGORIES, initialCategories);
     const newCat = {
       id: categoryData.name.toLowerCase().replace(/\s+/g, '-'),
@@ -316,10 +291,11 @@ export const createOrderInDb = async (orderData) => {
     createdAt: new Date().toISOString()
   };
 
-  if (isFirebaseConfigured) {
+  try {
     const docRef = await addDoc(collection(db, 'orders'), formattedOrder);
     return { id: docRef.id, ...formattedOrder };
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, saving order locally:', err.message);
     const orders = getLS(LS_KEYS.ORDERS, []);
     const newOrder = {
       id: 'ord-' + Math.floor(100000 + Math.random() * 900000),
@@ -332,32 +308,30 @@ export const createOrderInDb = async (orderData) => {
 };
 
 export const fetchOrdersFromDb = async (userId, isAdmin = false) => {
-  if (isFirebaseConfigured) {
-    try {
-      let q;
-      if (isAdmin) {
-        q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-      } else {
-        q = query(collection(db, 'orders'), where('userId', '==', userId));
-      }
-      const snap = await getDocs(q);
-      const orders = [];
-      snap.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
-      return orders;
-    } catch (err) {
-      console.warn('Fetch orders error:', err);
+  try {
+    let q;
+    if (isAdmin) {
+      q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    } else {
+      q = query(collection(db, 'orders'), where('userId', '==', userId));
     }
+    const snap = await getDocs(q);
+    const orders = [];
+    snap.forEach(doc => orders.push({ id: doc.id, ...doc.data() }));
+    return orders;
+  } catch (err) {
+    console.warn('Firestore blocked, reading orders locally:', err.message);
+    const allOrders = getLS(LS_KEYS.ORDERS, []);
+    if (isAdmin) return allOrders;
+    return allOrders.filter(o => o.userId === userId || !o.userId);
   }
-
-  const allOrders = getLS(LS_KEYS.ORDERS, []);
-  if (isAdmin) return allOrders;
-  return allOrders.filter(o => o.userId === userId || !o.userId);
 };
 
 export const updateOrderStatusInDb = async (orderId, newStatus) => {
-  if (isFirebaseConfigured) {
+  try {
     await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, updating order locally:', err.message);
     const orders = getLS(LS_KEYS.ORDERS, []);
     const index = orders.findIndex(o => o.id === orderId);
     if (index !== -1) {
@@ -371,23 +345,22 @@ export const updateOrderStatusInDb = async (orderId, newStatus) => {
 // ==================== USERS & ROLES SERVICES ====================
 
 export const fetchAllUsersFromDb = async () => {
-  if (isFirebaseConfigured) {
-    try {
-      const snap = await getDocs(collection(db, 'users'));
-      const users = [];
-      snap.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
-      return users;
-    } catch (e) {
-      return getLS(LS_KEYS.USERS, sampleUsers);
-    }
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    const users = [];
+    snap.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+    return users;
+  } catch (err) {
+    console.warn('Firestore blocked, reading users locally:', err.message);
+    return getLS(LS_KEYS.USERS, sampleUsers);
   }
-  return getLS(LS_KEYS.USERS, sampleUsers);
 };
 
 export const updateUserRoleInDb = async (userId, newRole) => {
-  if (isFirebaseConfigured) {
+  try {
     await updateDoc(doc(db, 'users', userId), { role: newRole });
-  } else {
+  } catch (err) {
+    console.warn('Firestore blocked, updating role locally:', err.message);
     const users = getLS(LS_KEYS.USERS, sampleUsers);
     const index = users.findIndex(u => u.uid === userId || u.id === userId);
     if (index !== -1) {

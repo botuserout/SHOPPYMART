@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { setSearchModalOpen, setSearchQuery } from '../../redux/slices/uiSlice';
+import { setSearchModalOpen } from '../../redux/slices/uiSlice';
+import { setSearchQuery } from '../../redux/slices/productSlice';
 import { Search, X, ArrowRight, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginThunk, googleLoginThunk, clearError } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/uiSlice';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
+import { Mail, Lock, LogIn, ArrowRight, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Login = () => {
@@ -20,7 +20,6 @@ const Login = () => {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(loginSchema),
@@ -52,19 +51,6 @@ const Login = () => {
     }
   };
 
-  // One-click quick demo accounts for seamless evaluation
-  const handleQuickLogin = (role) => {
-    if (role === 'admin') {
-      setValue('email', 'admin@skymart.com');
-      setValue('password', 'AdminPass123!');
-      dispatch(loginThunk({ email: 'admin@skymart.com', password: 'AdminPass123!' }));
-    } else {
-      setValue('email', 'customer@skymart.com');
-      setValue('password', 'CustomerPass123!');
-      dispatch(loginThunk({ email: 'customer@skymart.com', password: 'CustomerPass123!' }));
-    }
-  };
-
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4">
       <motion.div 
@@ -87,6 +73,37 @@ const Login = () => {
             ⚠️ {error}
           </div>
         )}
+
+        {/* Primary Google Login Button — uses redirect flow (no popup) */}
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={isLoading}
+          className="w-full py-3.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-sm flex items-center justify-center gap-3 transition-all hover:scale-[1.01] shadow-sm mb-6 disabled:opacity-70 disabled:cursor-wait"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              Redirecting to Google…
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
+                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+                <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 10.8 0 12s.7 2.3 1.9 4.7l3.7-1.9z"/>
+                <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
+              </svg>
+              Sign In with Google
+            </>
+          )}
+        </button>
+
+        {/* Divider */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800" /></div>
+          <span className="relative bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 uppercase font-semibold">Or sign in with email</span>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -143,50 +160,6 @@ const Login = () => {
             )}
           </button>
         </form>
-
-        {/* Divider */}
-        <div className="relative my-6 text-center">
-          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800" /></div>
-          <span className="relative bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 uppercase font-semibold">Or continue with</span>
-        </div>
-
-        {/* Google Login */}
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          className="w-full py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-sm flex items-center justify-center gap-3 transition-colors"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
-            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
-            <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 10.8 0 12s.7 2.3 1.9 4.7l3.7-1.9z"/>
-            <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
-          </svg>
-          Google Account
-        </button>
-
-        {/* Quick Demo Shortcuts */}
-        <div className="mt-6 p-4 rounded-2xl bg-brand-50/50 dark:bg-slate-800/60 border border-brand-100 dark:border-slate-800">
-          <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 text-center uppercase tracking-wider">
-            🚀 Quick Demo Login
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('customer')}
-              className="py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-brand-500 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <UserCheck className="w-3.5 h-3.5 text-brand-500" /> Demo Customer
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin')}
-              className="py-2 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-amber-500 rounded-xl text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Demo Admin
-            </button>
-          </div>
-        </div>
 
         {/* Footer link */}
         <div className="text-center mt-6 text-xs text-slate-500">

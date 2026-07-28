@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema } from '../schemas/authSchemas';
 import { useDispatch, useSelector } from 'react-redux';
-import { registerThunk, clearError } from '../redux/slices/authSlice';
+import { registerThunk, googleLoginThunk, clearError } from '../redux/slices/authSlice';
 import { showToast } from '../redux/slices/uiSlice';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, UserPlus, ArrowRight } from 'lucide-react';
@@ -55,6 +55,14 @@ const Register = () => {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    const res = await dispatch(googleLoginThunk());
+    if (!res.error) {
+      dispatch(showToast({ message: 'Profile created & signed in with Google!', type: 'success' }));
+      navigate('/');
+    }
+  };
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4">
       <motion.div 
@@ -62,13 +70,13 @@ const Register = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl border border-slate-200/80 dark:border-slate-800"
       >
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto mb-3">
             <UserPlus className="w-6 h-6" />
           </div>
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Create Your Account</h2>
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Create Your Profile</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Join SkyMart for exclusive deals, fast checkout & tracking
+            Join SkyMart for instant checkout, order tracking & profile management
           </p>
         </div>
 
@@ -77,6 +85,37 @@ const Register = () => {
             ⚠️ {error}
           </div>
         )}
+
+        {/* Primary Google Registration Button — uses redirect flow (no popup) */}
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          disabled={isLoading}
+          className="w-full py-3.5 px-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold text-sm flex items-center justify-center gap-3 transition-all hover:scale-[1.01] shadow-sm mb-6 disabled:opacity-70 disabled:cursor-wait"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              Redirecting to Google…
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.3 9 5 12 5z"/>
+                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+                <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 10.8 0 12s.7 2.3 1.9 4.7l3.7-1.9z"/>
+                <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.3-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"/>
+              </svg>
+              Sign Up with Google
+            </>
+          )}
+        </button>
+
+        {/* Divider */}
+        <div className="relative my-6 text-center">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800" /></div>
+          <span className="relative bg-white dark:bg-slate-900 px-3 text-xs text-slate-400 uppercase font-semibold">Or register with email</span>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>

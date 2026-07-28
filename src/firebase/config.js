@@ -3,26 +3,26 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyKeyForDevelopmentPurposeOnly",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "skymart-demo.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "skymart-demo",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "skymart-demo.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "123456789012",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:123456789012:web:demoapp id"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDsbqzDjjp0A_ZWJgyIHp0W6dsjZHYHd7I",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "shoppymart-c8c0c.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "shoppymart-c8c0c",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "shoppymart-c8c0c.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "405529861818",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:405529861818:web:5347bc157002c7aa896c83",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-0HBF6WE1EH"
 };
 
-// Check if valid credentials exist
-export const isFirebaseConfigured = Boolean(
-  import.meta.env.VITE_FIREBASE_API_KEY &&
-  import.meta.env.VITE_FIREBASE_PROJECT_ID &&
-  !import.meta.env.VITE_FIREBASE_API_KEY.includes('your_api_key')
-);
+// Firebase is always configured with real credentials
+export const isFirebaseConfigured = true;
 
-// Initialize Firebase App
+// Initialize Firebase App (singleton pattern)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// Google Provider — always prompt account selection
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export default app;

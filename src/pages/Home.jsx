@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchProductsThunk, fetchCategoriesThunk, setSelectedCategory } from '../redux/slices/authSlice' ? require('../redux/slices/productSlice') : require('../redux/slices/productSlice');
+import { fetchProductsThunk, fetchCategoriesThunk, setSelectedCategory } from '../redux/slices/productSlice';
 import { addToCart } from '../redux/slices/cartSlice';
 import { toggleWishlist, selectIsInWishlist } from '../redux/slices/wishlistSlice';
 import { showToast, setCartDrawerOpen } from '../redux/slices/uiSlice';
