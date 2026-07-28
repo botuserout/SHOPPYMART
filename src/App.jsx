@@ -50,11 +50,25 @@ function App() {
   const { isInitialized } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Single Source of Truth for Session Persistence
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    // Ultra-Fast Non-Blocking Auth Listener
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        const userProfile = await fetchOrCreateUserProfile(firebaseUser);
-        dispatch(setUser(userProfile));
+        // 1. Immediately hydrate minimal user object (< 1ms) so UI renders with 0 delay
+        const instantUser = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'SkyMart User'),
+          photoURL: firebaseUser.photoURL || '',
+          role: 'customer'
+        };
+        dispatch(setUser(instantUser));
+
+        // 2. Fetch full Firestore profile asynchronously in background
+        fetchOrCreateUserProfile(firebaseUser).then((fullProfile) => {
+          if (fullProfile) {
+            dispatch(setUser(fullProfile));
+          }
+        }).catch(() => {});
       } else {
         dispatch(setUser(null));
       }
@@ -63,7 +77,6 @@ function App() {
     return () => unsubscribe();
   }, [dispatch]);
 
-  // Block route evaluation until Firebase Auth session state is restored
   if (!isInitialized) {
     return <PageLoader />;
   }

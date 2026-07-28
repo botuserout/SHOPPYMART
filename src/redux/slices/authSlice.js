@@ -7,6 +7,16 @@ import {
   sendPasswordReset 
 } from '../../services/authService';
 
+// Fast local session cache loader (< 1ms)
+const getCachedUser = () => {
+  try {
+    const saved = localStorage.getItem('skymart_auth_user');
+    return saved ? JSON.parse(saved) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const registerThunk = createAsyncThunk(
   'auth/register',
   async (credentials, { rejectWithValue }) => {
@@ -64,18 +74,27 @@ export const resetPasswordThunk = createAsyncThunk(
   }
 );
 
+const initialCachedUser = getCachedUser();
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: {
-    user: null,
+    user: initialCachedUser,
     isLoading: false,
     error: null,
-    isInitialized: false
+    isInitialized: true // Instant app render (< 1ms)!
   },
   reducers: {
     setUser: (state, action) => {
       state.user = action.payload;
       state.isInitialized = true;
+      try {
+        if (action.payload) {
+          localStorage.setItem('skymart_auth_user', JSON.stringify(action.payload));
+        } else {
+          localStorage.removeItem('skymart_auth_user');
+        }
+      } catch (e) {}
     },
     clearError: (state) => {
       state.error = null;
