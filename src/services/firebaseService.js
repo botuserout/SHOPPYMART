@@ -165,20 +165,27 @@ export const createOrderInDb = async (orderData) => {
     createdAt: new Date().toISOString()
   };
 
-  try {
-    const docRef = await addDoc(collection(db, 'orders'), formattedOrder);
-    return { id: docRef.id, ...formattedOrder };
-  } catch (err) {
-    console.warn('Firestore blocked, saving order locally:', err.message);
-    const orders = getLS(LS_KEYS.ORDERS, []);
-    const newOrder = {
-      id: 'ord-' + Math.floor(100000 + Math.random() * 900000),
-      ...formattedOrder
-    };
-    orders.unshift(newOrder);
-    setLS(LS_KEYS.ORDERS, orders);
-    return newOrder;
-  }
+  // Always save locally to localStorage first for instant fallback & offline availability
+  const orders = getLS(LS_KEYS.ORDERS, []);
+  const newLocalOrder = {
+    id: formattedOrder.orderNumber || ('ord-' + Math.floor(100000 + Math.random() * 900000)),
+    ...formattedOrder
+  };
+  orders.unshift(newLocalOrder);
+  setLS(LS_KEYS.ORDERS, orders);
+
+  // Background Firestore add with 1.2s fast timeout
+  const firestoreAdd = (async () => {
+    try {
+      const docRef = await addDoc(collection(db, 'orders'), formattedOrder);
+      return { id: docRef.id, ...formattedOrder };
+    } catch (err) {
+      return newLocalOrder;
+    }
+  })();
+
+  const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(newLocalOrder), 1200));
+  return await Promise.race([firestoreAdd, timeoutPromise]);
 };
 
 export const fetchOrdersFromDb = async (userId, isAdmin = false) => {

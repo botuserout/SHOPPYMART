@@ -84,7 +84,7 @@ const Checkout = () => {
     }
   });
 
-  if (cartItems.length === 0) {
+  if (cartItems.length === 0 && !isProcessing) {
     return (
       <div className="py-20 text-center space-y-4">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Your Cart is Empty</h2>
@@ -165,20 +165,20 @@ const Checkout = () => {
     setIsProcessing(true);
     setProcessingStage(0);
 
-    // Stage 1: Validating
-    await new Promise(res => setTimeout(res, 600));
+    // Stage 1: Validating (350ms)
+    await new Promise(res => setTimeout(res, 350));
     setProcessingStage(1);
 
-    // Stage 2: Connecting
-    await new Promise(res => setTimeout(res, 700));
+    // Stage 2: Connecting (350ms)
+    await new Promise(res => setTimeout(res, 350));
     setProcessingStage(2);
 
-    // Stage 3: Processing Transaction
-    await new Promise(res => setTimeout(res, 800));
+    // Stage 3: Processing Transaction (400ms)
+    await new Promise(res => setTimeout(res, 400));
     setProcessingStage(3);
 
-    // Stage 4: Confirmed Success
-    await new Promise(res => setTimeout(res, 600));
+    // Stage 4: Confirmed Success checkmark display (400ms)
+    await new Promise(res => setTimeout(res, 400));
 
     const { orderNumber, transactionNumber } = generateIDs();
 
@@ -209,15 +209,20 @@ const Checkout = () => {
 
     try {
       const resultAction = await dispatch(createOrderThunk(orderPayload));
+      const finalizedOrder = (!resultAction.error && resultAction.payload) ? resultAction.payload : orderPayload;
 
-      if (!resultAction.error) {
+      // Close modal first
+      setIsProcessing(false);
+
+      // Navigate to order-success page
+      navigate('/order-success', { state: { order: finalizedOrder }, replace: true });
+
+      // Clear cart after navigation trigger
+      setTimeout(() => {
         dispatch(clearCart());
         dispatch(showToast({ message: 'Payment Successful! Order Confirmed 🎉', type: 'success' }));
-        navigate('/order-success', { state: { order: resultAction.payload || orderPayload } });
-      } else {
-        dispatch(showToast({ message: 'Order creation failed.', type: 'error' }));
-        setIsProcessing(false);
-      }
+      }, 50);
+
     } catch (err) {
       console.error('Order creation error:', err);
       dispatch(showToast({ message: 'Error processing order.', type: 'error' }));
