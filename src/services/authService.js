@@ -15,43 +15,9 @@ import {
 import { auth, db, googleProvider } from '../firebase/config';
 
 /**
- * Error classification helper for Firebase operations.
- */
-export const classifyFirebaseError = (error) => {
-  if (!error) return { type: 'UNKNOWN', message: 'An unknown error occurred.' };
-
-  const msg = (error.message || '').toLowerCase();
-  const code = (error.code || '').toLowerCase();
-
-  if (msg.includes('blocked_by_client') || msg.includes('failed to fetch') || msg.includes('net::err')) {
-    return {
-      type: 'EXTENSION_BLOCKED',
-      message: 'Network request intercepted by a browser extension (ad-blocker/privacy shield).'
-    };
-  }
-
-  if (code.includes('permission-denied') || msg.includes('permission denied')) {
-    return {
-      type: 'PERMISSION_DENIED',
-      message: 'Firestore Security Rules rejected the operation.'
-    };
-  }
-
-  if (code.includes('unavailable') || msg.includes('offline') || msg.includes('network')) {
-    return {
-      type: 'NETWORK_OFFLINE',
-      message: 'Network connection is offline or unstable.'
-    };
-  }
-
-  return {
-    type: 'FIREBASE_AUTH_ERROR',
-    message: error.message || 'Firebase service error.'
-  };
-};
-
-/**
- * Super-fast user profile fetch & sync with resilient fallback.
+ * Super-fast user profile fetch & sync.
+ * Constructs instant profile from Auth user, checks cache, and races Firestore
+ * with a fast 800ms timeout so UI transitions and auth NEVER stall.
  */
 export const fetchOrCreateUserProfile = async (user) => {
   if (!user || !user.uid) return null;
@@ -72,7 +38,9 @@ export const fetchOrCreateUserProfile = async (user) => {
   try {
     const cached = localStorage.getItem(cacheKey);
     if (cached) baseProfile = JSON.parse(cached);
-  } catch (e) {}
+  } catch (e) {
+    // Ignore cache parse error
+  }
 
   // Background Firestore query
   const firestorePromise = (async () => {
@@ -90,12 +58,7 @@ export const fetchOrCreateUserProfile = async (user) => {
         return instantProfile;
       }
     } catch (e) {
-      const errInfo = classifyFirebaseError(e);
-      if (errInfo.type === 'EXTENSION_BLOCKED') {
-        console.info('ℹ️ Firestore profile query handled by local cache (Ad-Blocker active).');
-      } else {
-        console.warn(`Firestore sync warning [${errInfo.type}]:`, errInfo.message);
-      }
+      console.warn('Firestore profile sync timeout/error (using base profile):', e.message);
       return baseProfile;
     }
   })();
@@ -113,65 +76,52 @@ export const fetchOrCreateUserProfile = async (user) => {
 };
 
 /**
- * Authenticates user via Google Auth Popup.
+ * Authenticates user via Google Auth Popup instantly.
  */
 export const loginWithGooglePopup = async () => {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    const userProfile = await fetchOrCreateUserProfile(user);
-    return userProfile;
-  } catch (error) {
-    const errInfo = classifyFirebaseError(error);
-    throw new Error(errInfo.message);
-  }
+  const result = await signInWithPopup(auth, googleProvider);
+  const user = result.user;
+  const userProfile = await fetchOrCreateUserProfile(user);
+  return userProfile;
 };
 
 /**
  * Registers new user with Email, Password, and Display Name.
  */
 export const registerWithEmail = async ({ email, password, displayName }) => {
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
 
-    // Send verification email asynchronously
-    sendEmailVerification(user).catch(() => {});
+  // Send verification email asynchronously without blocking
+  sendEmailVerification(user).catch(err => 
+    console.warn('Email verification send failed:', err.message)
+  );
 
-    // Update Firebase Auth display name
-    if (displayName) {
-      updateProfile(user, { displayName }).catch(() => {});
-    }
-
-    const userProfile = await fetchOrCreateUserProfile({
-      ...user,
-      displayName: displayName || user.displayName
-    });
-
-    return userProfile;
-  } catch (error) {
-    const errInfo = classifyFirebaseError(error);
-    throw new Error(errInfo.message);
+  // Update Firebase Auth display name
+  if (displayName) {
+    updateProfile(user, { displayName }).catch(() => {});
   }
+
+  const userProfile = await fetchOrCreateUserProfile({
+    ...user,
+    displayName: displayName || user.displayName
+  });
+
+  return userProfile;
 };
 
 /**
- * Signs in user with Email and Password.
+ * Signs in user with Email and Password instantly.
  */
 export const loginWithEmail = async ({ email, password }) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    const userProfile = await fetchOrCreateUserProfile(user);
-    return userProfile;
-  } catch (error) {
-    const errInfo = classifyFirebaseError(error);
-    throw new Error(errInfo.message);
-  }
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const user = userCredential.user;
+  const userProfile = await fetchOrCreateUserProfile(user);
+  return userProfile;
 };
 
 /**
- * Signs out current user.
+ * Signs out current user from Firebase Auth and clears local session cache.
  */
 export const logoutUser = async () => {
   try {
@@ -181,14 +131,9 @@ export const logoutUser = async () => {
 };
 
 /**
- * Sends password reset email.
+ * Sends a password reset email to the specified email address.
  */
 export const sendPasswordReset = async (email) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-    return true;
-  } catch (error) {
-    const errInfo = classifyFirebaseError(error);
-    throw new Error(errInfo.message);
-  }
+  await sendPasswordResetEmail(auth, email);
+  return true;
 };

@@ -50,14 +50,10 @@ function App() {
   const { isInitialized } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    let isMounted = true;
-
-    // Single Auth Listener with explicit cleanup and mounted guard
+    // Ultra-Fast Non-Blocking Auth Listener
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (!isMounted) return;
-
       if (firebaseUser) {
-        // Immediate UI hydration (< 1ms)
+        // 1. Immediately hydrate minimal user object (< 1ms) so UI renders with 0 delay
         const instantUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email || '',
@@ -67,9 +63,9 @@ function App() {
         };
         dispatch(setUser(instantUser));
 
-        // Background profile sync
+        // 2. Fetch full Firestore profile asynchronously in background
         fetchOrCreateUserProfile(firebaseUser).then((fullProfile) => {
-          if (isMounted && fullProfile) {
+          if (fullProfile) {
             dispatch(setUser(fullProfile));
           }
         }).catch(() => {});
@@ -78,10 +74,7 @@ function App() {
       }
     });
 
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [dispatch]);
 
   if (!isInitialized) {
