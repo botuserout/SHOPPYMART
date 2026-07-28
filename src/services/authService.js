@@ -22,13 +22,15 @@ import { auth, db, googleProvider } from '../firebase/config';
 export const fetchOrCreateUserProfile = async (user) => {
   if (!user || !user.uid) return null;
 
+  const isAdminEmail = user.email && user.email.toLowerCase().includes('admin');
+
   // Instant profile derived directly from Firebase Auth user (< 1ms)
   const instantProfile = {
     uid: user.uid,
     email: user.email || '',
     displayName: user.displayName || (user.email ? user.email.split('@')[0] : 'SkyMart User'),
     photoURL: user.photoURL || '',
-    role: 'customer',
+    role: isAdminEmail ? 'admin' : 'customer',
     createdAt: new Date().toISOString()
   };
 

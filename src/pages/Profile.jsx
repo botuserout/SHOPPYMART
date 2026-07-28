@@ -48,15 +48,34 @@ const Profile = () => {
           <p className="text-xs text-slate-200">{user?.email}</p>
         </div>
 
-        <div className="flex gap-4 border-t sm:border-t-0 sm:border-l border-white/20 pt-4 sm:pt-0 sm:pl-6 text-center">
-          <div>
-            <span className="text-2xl font-extrabold block">{userOrders.length}</span>
-            <span className="text-[11px] text-slate-200 font-medium">Orders</span>
+        <div className="flex flex-col sm:flex-row items-center gap-4 border-t sm:border-t-0 sm:border-l border-white/20 pt-4 sm:pt-0 sm:pl-6 text-center">
+          <div className="flex gap-4">
+            <div>
+              <span className="text-2xl font-extrabold block">{userOrders.length}</span>
+              <span className="text-[11px] text-slate-200 font-medium">Orders</span>
+            </div>
+            <div>
+              <span className="text-2xl font-extrabold block">{wishlistCount}</span>
+              <span className="text-[11px] text-slate-200 font-medium">Saved Items</span>
+            </div>
           </div>
-          <div>
-            <span className="text-2xl font-extrabold block">{wishlistCount}</span>
-            <span className="text-[11px] text-slate-200 font-medium">Saved Items</span>
-          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              const newRole = user?.role === 'admin' ? 'customer' : 'admin';
+              const updatedUser = { ...user, role: newRole };
+              dispatch({ type: 'auth/setUser', payload: updatedUser });
+              try {
+                localStorage.setItem(`skymart_user_${user.uid}`, JSON.stringify(updatedUser));
+                localStorage.setItem('skymart_auth_user', JSON.stringify(updatedUser));
+              } catch (e) {}
+              dispatch(showToast({ message: `Role updated to ${newRole.toUpperCase()}! 🎉`, type: 'success' }));
+            }}
+            className="px-3.5 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 backdrop-blur-md transition-all shadow-sm active:scale-95"
+          >
+            <Shield className="w-3.5 h-3.5" /> Toggle {user?.role === 'admin' ? 'Customer' : 'Admin'} Mode
+          </button>
         </div>
       </div>
 
