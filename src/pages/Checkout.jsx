@@ -118,13 +118,17 @@ const Checkout = () => {
 
   const onSubmitForm = (shippingAddress) => {
     if (paymentMethod === 'razorpay') {
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_dummy';
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
+      const isRealKey = razorpayKey && 
+                        !razorpayKey.includes('YourKeyId') && 
+                        !razorpayKey.includes('dummy') && 
+                        razorpayKey.startsWith('rzp_');
 
-      if (typeof window !== 'undefined' && window.Razorpay) {
+      if (isRealKey && typeof window !== 'undefined' && window.Razorpay) {
         const options = {
           key: razorpayKey,
-          amount: Math.round(total * 100), // Amount in smallest currency sub-unit (cents)
-          currency: 'USD',
+          amount: Math.round(total * 100),
+          currency: 'INR',
           name: 'SkyMart E-Commerce',
           description: 'Payment for SkyMart Order',
           image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&auto=format&fit=crop&q=80',
@@ -137,7 +141,7 @@ const Checkout = () => {
           prefill: {
             name: shippingAddress.fullName,
             email: shippingAddress.email,
-            contact: shippingAddress.phone
+            contact: shippingAddress.phone || '9999999999'
           },
           theme: {
             color: '#4f46e5'
@@ -145,27 +149,33 @@ const Checkout = () => {
           modal: {
             ondismiss: function () {
               setIsProcessing(false);
-              dispatch(showToast({ message: 'Razorpay checkout closed.', type: 'info' }));
+              dispatch(showToast({ message: 'Razorpay checkout cancelled.', type: 'info' }));
             }
           }
         };
 
         try {
           const rzp = new window.Razorpay(options);
+          rzp.on('payment.failed', function (response) {
+            setIsProcessing(false);
+            dispatch(showToast({ message: 'Razorpay payment failed. Using Test Order mode.', type: 'error' }));
+          });
           rzp.open();
         } catch (e) {
-          // Fallback test trigger if script load fails or dummy key
           handleFinalizeOrder(shippingAddress, {
-            method: 'Razorpay (Test Simulation)',
-            paymentId: 'pay_simulated_' + Date.now()
+            method: 'Razorpay (Test Mode)',
+            paymentId: 'pay_test_' + Math.random().toString(36).substring(2, 9)
           });
         }
       } else {
-        // Direct test simulation if Razorpay object not bound
-        handleFinalizeOrder(shippingAddress, {
-          method: 'Razorpay (Test Simulation)',
-          paymentId: 'pay_simulated_' + Date.now()
-        });
+        // Automatic Test Mode Simulation when no live Razorpay Key is configured
+        setIsProcessing(true);
+        setTimeout(() => {
+          handleFinalizeOrder(shippingAddress, {
+            method: 'Razorpay (Test Mode)',
+            paymentId: 'pay_test_' + Math.random().toString(36).substring(2, 9)
+          });
+        }, 800);
       }
     } else {
       // Cash on Delivery
