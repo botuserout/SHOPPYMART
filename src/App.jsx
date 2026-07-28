@@ -1,11 +1,10 @@
 import React, { useEffect, lazy, Suspense } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth, db } from './firebase/config';
-import { setUser, googleRedirectResultThunk } from './redux/slices/authSlice';
-import { showToast } from './redux/slices/uiSlice';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth } from './firebase/config';
+import { fetchOrCreateUserProfile } from './services/authService';
+import { setUser } from './redux/slices/authSlice';
 
 // Layouts & Protection
 import MainLayout from './layouts/MainLayout';
@@ -40,7 +39,7 @@ const OrdersAdmin = lazy(() => import('./pages/admin/OrdersAdmin'));
 const UsersAdmin = lazy(() => import('./pages/admin/UsersAdmin'));
 
 const PageLoader = () => (
-  <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+  <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-950">
     <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin" />
     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Loading SkyMart…</p>
   </div>
@@ -48,56 +47,24 @@ const PageLoader = () => (
 
 function App() {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { isRedirectPending } = useSelector((state) => state.auth);
+  const { isInitialized } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // 1. Check if the user just returned from a Google redirect sign-in
-    dispatch(googleRedirectResultThunk()).then((result) => {
-      if (result.payload) {
-        // User completed Google Sign-In via redirect
-        dispatch(showToast({ message: `Welcome, ${result.payload.displayName || 'there'}! 🎉`, type: 'success' }));
-        navigate(result.payload.role === 'admin' ? '/admin' : '/');
-      }
-    });
-
-    // 2. Firebase Auth state listener — keeps user in sync after page refreshes
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const userData = userDoc.exists()
-            ? userDoc.data()
-            : {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || user.email?.split('@')[0],
-                photoURL: user.photoURL || '',
-                role: 'customer',
-                createdAt: new Date().toISOString()
-              };
-          dispatch(setUser(userData));
-        } catch (e) {
-          // Firestore blocked (ad-blocker) — use Firebase Auth data directly
-          dispatch(setUser({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName || 'User',
-            photoURL: user.photoURL || '',
-            role: 'customer',
-            createdAt: new Date().toISOString()
-          }));
-        }
+    // Single Source of Truth for Session Persistence
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userProfile = await fetchOrCreateUserProfile(firebaseUser);
+        dispatch(setUser(userProfile));
       } else {
         dispatch(setUser(null));
       }
     });
 
     return () => unsubscribe();
-  }, [dispatch, navigate]);
+  }, [dispatch]);
 
-  // Show a spinner while waiting for the Google redirect result to resolve
-  if (isRedirectPending) {
+  // Block route evaluation until Firebase Auth session state is restored
+  if (!isInitialized) {
     return <PageLoader />;
   }
 

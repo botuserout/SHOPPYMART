@@ -86,7 +86,7 @@ const Register = () => {
           </div>
         )}
 
-        {/* Primary Google Registration Button — uses redirect flow (no popup) */}
+        {/* Primary Google Registration Button — Popup Auth */}
         <button
           type="button"
           onClick={handleGoogleSignUp}
@@ -96,7 +96,7 @@ const Register = () => {
           {isLoading ? (
             <>
               <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-              Redirecting to Google…
+              Authenticating with Google…
             </>
           ) : (
             <>

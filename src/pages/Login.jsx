@@ -74,7 +74,7 @@ const Login = () => {
           </div>
         )}
 
-        {/* Primary Google Login Button — uses redirect flow (no popup) */}
+        {/* Primary Google Login Button — Popup Auth */}
         <button
           type="button"
           onClick={handleGoogleLogin}
@@ -84,7 +84,7 @@ const Login = () => {
           {isLoading ? (
             <>
               <div className="w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-              Redirecting to Google…
+              Authenticating with Google…
             </>
           ) : (
             <>

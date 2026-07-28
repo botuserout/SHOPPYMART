@@ -1,14 +1,4 @@
 import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  signInWithRedirect,
-  getRedirectResult,
-  sendEmailVerification, 
-  sendPasswordResetEmail,
-  updateProfile
-} from 'firebase/auth';
-import { 
   doc, 
   getDoc, 
   setDoc, 
@@ -22,7 +12,7 @@ import {
   orderBy,
   serverTimestamp 
 } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../firebase/config';
+import { db } from '../firebase/config';
 import { initialProducts, initialCategories, sampleUsers } from '../utils/seedData';
 
 // Local storage key constants (used as a graceful fallback when Firestore is blocked by ad-blockers)
@@ -59,136 +49,20 @@ if (!getLS(LS_KEYS.CATEGORIES)) setLS(LS_KEYS.CATEGORIES, initialCategories);
 if (!getLS(LS_KEYS.USERS)) setLS(LS_KEYS.USERS, sampleUsers);
 if (!getLS(LS_KEYS.ORDERS)) setLS(LS_KEYS.ORDERS, []);
 
-// ==================== AUTHENTICATION SERVICES ====================
-
-export const registerUser = async ({ email, password, displayName }) => {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
-
-  // Send email verification
-  await sendEmailVerification(user).catch(err => console.warn('Verification email error:', err));
-
-  // Update display name in Firebase Auth profile
-  await updateProfile(user, { displayName });
-
-  const userData = {
-    uid: user.uid,
-    email: user.email,
-    displayName: displayName || email.split('@')[0],
-    photoURL: user.photoURL || '',
-    role: 'customer',
-    createdAt: new Date().toISOString()
-  };
-
-  try {
-    await setDoc(doc(db, 'users', user.uid), userData);
-  } catch (err) {
-    console.warn('Firestore write blocked (ad-blocker?), saving locally:', err.message);
-    const mockUsers = getLS(LS_KEYS.USERS, []);
-    mockUsers.push(userData);
-    setLS(LS_KEYS.USERS, mockUsers);
-  }
-
-  return userData;
-};
-
-export const loginUser = async ({ email, password }) => {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  const user = userCredential.user;
-
-  try {
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    if (userDoc.exists()) return userDoc.data();
-
-    // First-time login: create doc
-    const userData = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || email.split('@')[0],
-      photoURL: user.photoURL || '',
-      role: 'customer',
-      createdAt: new Date().toISOString()
-    };
-    await setDoc(doc(db, 'users', user.uid), userData);
-    return userData;
-  } catch (err) {
-    console.warn('Firestore read blocked (ad-blocker?), using Firebase Auth data:', err.message);
-    return {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName || email.split('@')[0],
-      photoURL: user.photoURL || '',
-      role: 'customer',
-      createdAt: new Date().toISOString()
-    };
-  }
-};
-
-/**
- * Initiates Google Sign-In using redirect flow.
- * Avoids COOP/popup-blocking issues entirely.
- * The result is consumed on the next page load via getGoogleRedirectResult().
- */
-export const loginWithGoogle = async () => {
-  await signInWithRedirect(auth, googleProvider);
-  // Browser navigates away — this line is never reached
-};
-
-/**
- * Called on app startup to check if the user just returned from a Google redirect.
- * Returns user data if a redirect just completed, or null if no pending redirect.
- */
-export const getGoogleRedirectResult = async () => {
-  try {
-    const result = await getRedirectResult(auth);
-    if (!result) return null; // No redirect was pending
-
-    const user = result.user;
-    const userDocRef = doc(db, 'users', user.uid);
-
-    try {
-      const userDoc = await getDoc(userDocRef);
-      if (userDoc.exists()) return userDoc.data();
-
-      // New Google user — create Firestore doc
-      const userData = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || 'Google User',
-        photoURL: user.photoURL || '',
-        role: 'customer',
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(userDocRef, userData);
-      return userData;
-    } catch (firestoreErr) {
-      console.warn('Firestore blocked (ad-blocker?), returning Firebase Auth data:', firestoreErr.message);
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || 'Google User',
-        photoURL: user.photoURL || '',
-        role: 'customer',
-        createdAt: new Date().toISOString()
-      };
-    }
-  } catch (err) {
-    // Ignore "no redirect" errors silently
-    if (err.code === 'auth/no-auth-event') return null;
-    console.warn('getRedirectResult error:', err.message);
-    return null;
-  }
-};
-
-export const logoutUser = async () => {
-  await signOut(auth);
-  localStorage.removeItem(LS_KEYS.CURRENT_USER);
-};
-
-export const resetUserPassword = async (email) => {
-  await sendPasswordResetEmail(auth, email);
-  return true;
-};
+// Re-export Auth services from dedicated authService.js
+export {
+  fetchOrCreateUserProfile,
+  loginWithGooglePopup,
+  registerWithEmail,
+  loginWithEmail,
+  logoutUser,
+  sendPasswordReset,
+  // Alias mappings for backward compatibility
+  loginWithEmail as loginUser,
+  registerWithEmail as registerUser,
+  loginWithGooglePopup as loginWithGoogle,
+  sendPasswordReset as resetUserPassword
+} from './authService';
 
 // ==================== PRODUCTS SERVICES ====================
 

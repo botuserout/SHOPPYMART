@@ -1,18 +1,17 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { 
-  registerUser, 
-  loginUser, 
-  loginWithGoogle,
-  getGoogleRedirectResult,
+  registerWithEmail, 
+  loginWithEmail, 
+  loginWithGooglePopup,
   logoutUser, 
-  resetUserPassword 
-} from '../../services/firebaseService';
+  sendPasswordReset 
+} from '../../services/authService';
 
 export const registerThunk = createAsyncThunk(
   'auth/register',
   async (credentials, { rejectWithValue }) => {
     try {
-      return await registerUser(credentials);
+      return await registerWithEmail(credentials);
     } catch (err) {
       return rejectWithValue(err.message || 'Registration failed');
     }
@@ -23,40 +22,20 @@ export const loginThunk = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      return await loginUser(credentials);
+      return await loginWithEmail(credentials);
     } catch (err) {
       return rejectWithValue(err.message || 'Login failed');
     }
   }
 );
 
-/**
- * Initiates Google Sign-In via redirect. Browser navigates away immediately —
- * the auth result is consumed on the next page load via googleRedirectResultThunk.
- */
 export const googleLoginThunk = createAsyncThunk(
   'auth/googleLogin',
   async (_, { rejectWithValue }) => {
     try {
-      await loginWithGoogle();
-      return null; // Browser navigates away before this resolves
+      return await loginWithGooglePopup();
     } catch (err) {
       return rejectWithValue(err.message || 'Google Login failed');
-    }
-  }
-);
-
-/**
- * Called on app startup to consume any pending Google redirect result.
- * Returns user data if the user just returned from Google auth, otherwise null.
- */
-export const googleRedirectResultThunk = createAsyncThunk(
-  'auth/googleRedirectResult',
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getGoogleRedirectResult();
-    } catch (err) {
-      return rejectWithValue(err.message || 'Google redirect check failed');
     }
   }
 );
@@ -77,7 +56,7 @@ export const resetPasswordThunk = createAsyncThunk(
   'auth/resetPassword',
   async (email, { rejectWithValue }) => {
     try {
-      await resetUserPassword(email);
+      await sendPasswordReset(email);
       return true;
     } catch (err) {
       return rejectWithValue(err.message || 'Reset password request failed');
@@ -90,7 +69,6 @@ const authSlice = createSlice({
   initialState: {
     user: null,
     isLoading: false,
-    isRedirectPending: false, // True while checking for redirect result on startup
     error: null,
     isInitialized: false
   },
@@ -135,34 +113,19 @@ const authSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Google Redirect Initiation (browser navigates away — no user returned)
+      // Google Popup Login
       .addCase(googleLoginThunk.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(googleLoginThunk.fulfilled, (state) => {
-        // Browser has navigated to Google — loading stays true until redirect returns
+      .addCase(googleLoginThunk.fulfilled, (state, action) => {
         state.isLoading = false;
+        state.user = action.payload;
+        state.isInitialized = true;
       })
       .addCase(googleLoginThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-      })
-
-      // Google Redirect Result (called on page load after returning from Google)
-      .addCase(googleRedirectResultThunk.pending, (state) => {
-        state.isRedirectPending = true;
-      })
-      .addCase(googleRedirectResultThunk.fulfilled, (state, action) => {
-        state.isRedirectPending = false;
-        state.isInitialized = true;
-        if (action.payload) {
-          state.user = action.payload; // Only set if a redirect actually completed
-        }
-      })
-      .addCase(googleRedirectResultThunk.rejected, (state) => {
-        state.isRedirectPending = false;
-        state.isInitialized = true;
       })
 
       // Logout
