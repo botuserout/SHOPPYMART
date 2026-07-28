@@ -43,9 +43,17 @@ const setLS = (key, value) => {
   }
 };
 
-// Initialize seed data if missing
-if (!getLS(LS_KEYS.PRODUCTS)) setLS(LS_KEYS.PRODUCTS, initialProducts);
-if (!getLS(LS_KEYS.CATEGORIES)) setLS(LS_KEYS.CATEGORIES, initialCategories);
+// Initialize seed data or update if new seed items added
+const existingProducts = getLS(LS_KEYS.PRODUCTS, []);
+if (existingProducts.length < initialProducts.length) {
+  setLS(LS_KEYS.PRODUCTS, initialProducts);
+}
+
+const existingCategories = getLS(LS_KEYS.CATEGORIES, []);
+if (existingCategories.length < initialCategories.length) {
+  setLS(LS_KEYS.CATEGORIES, initialCategories);
+}
+
 if (!getLS(LS_KEYS.USERS)) setLS(LS_KEYS.USERS, sampleUsers);
 if (!getLS(LS_KEYS.ORDERS)) setLS(LS_KEYS.ORDERS, []);
 

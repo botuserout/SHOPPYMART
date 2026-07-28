@@ -14,6 +14,7 @@ import {
   Star, 
   ShieldCheck, 
   Zap, 
+  Gamepad2,
   Cpu, 
   Shirt, 
   Home as HomeIcon, 
@@ -25,6 +26,7 @@ import {
 import { motion } from 'framer-motion';
 
 const iconMap = {
+  Gamepad2: Gamepad2,
   Cpu: Cpu,
   Shirt: Shirt,
   Home: HomeIcon,
